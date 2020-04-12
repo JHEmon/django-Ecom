@@ -5,7 +5,8 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.shortcuts import render, get_object_or_404, redirect
 from django.views.generic import ListView, DetailView, View
 from django.utils import timezone
-from .models import Item, OrderItem, Order
+from .forms import CheckoutForm
+from .models import Item, OrderItem, Order, BillingAddress
 
 
 # Create your views here.
@@ -17,8 +18,47 @@ def products(request):
     return render(request, "product.html", context)
 
 
-def checkout(request):
-    return render(request, "checkout.html")
+class CheckoutView(View):
+    def get(self, *args, **kwargs):
+        form = CheckoutForm()
+        context = {
+            'form': form
+        }
+        return render(self.request, "checkout.html", context)
+
+    def post(self, *args, **kwargs):
+        form = CheckoutForm(self.request.POST or None)
+
+        def get(self, *args, **kwargs):
+            try:
+                order = Order.objects.get(user=self.request.user, ordered=False)
+                if form.is_valid():
+                    street_address = form.cleaned_data.get('street_address')
+                    apartment_address = form.cleaned_data.get('apartment_address')
+                    country = form.cleaned_data.get('country')
+                    zip = form.cleaned_data.get('zip')
+                    # TODO: add functionality for these fields
+                    # same_shipping_address = form.cleaned_data.get('same_shipping_address')
+                    # save_info = form.cleaned_data.get('save_info')
+                    payment_option = form.cleaned_data.get('payment_option')
+                    billing_address = BillingAddress(
+                        user=self.request.user,
+                        street_address=street_address,
+                        apartment_address=apartment_address,
+                        country=country,
+                        zip=zip
+                    )
+                    billing_address.save()
+                    order.billing_address = billing_address
+                    order.save()
+                    # TODO: ADD REDIRECT TO THE SELECTED PAYMENT OPTION
+                    return redirect('core:checkout')
+                messages.warning(self.request, "Failed checkout")
+                return redirect('core:checkout')
+            except ObjectDoesNotExist:
+                messages.error(self.request, "You do not have any active order")
+                return redirect("core:order-summary")
+
 
 
 class HomeView(ListView):
@@ -26,21 +66,24 @@ class HomeView(ListView):
     paginate_by = 10
     template_name = "home.html"
 
+
 class OrderSummaryView(LoginRequiredMixin, View):
     def get(self, *args, **kwargs):
         try:
             order = Order.objects.get(user=self.request.user, ordered=False)
             context = {
-                'object' : order
+                'object': order
             }
             return render(self.request, 'order_summery.html', context)
         except ObjectDoesNotExist:
             messages.error(self.request, "You do not have any active order")
             return redirect("/")
 
+
 class ItemDetailView(DetailView):
     model = Item
     template_name = "product.html"
+
 
 @login_required
 def add_to_cart(request, slug):
@@ -75,6 +118,7 @@ def add_to_cart(request, slug):
                       "This item was added to your cart")
         return redirect("core:order-summary")
 
+
 @login_required
 def remove_from_cart(request, slug):
     item = get_object_or_404(Item, slug=slug)
@@ -104,6 +148,7 @@ def remove_from_cart(request, slug):
         messages.info(request,
                       "You do not have any active order")
         return redirect("core:product", slug=slug)
+
 
 @login_required
 def remove_single_item_from_cart(request, slug):

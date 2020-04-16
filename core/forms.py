@@ -6,6 +6,8 @@ PAYMENT_CHOICE = (
     ('S', 'Stripe'),
     ('P', 'PayPal')
 )
+
+
 class CheckoutForm(forms.Form):
     street_address = forms.CharField(widget=forms.TextInput(attrs={
         'placeholder': '1234 Main St',
@@ -29,3 +31,10 @@ class CheckoutForm(forms.Form):
     payment_option = forms.ChoiceField(widget=forms.RadioSelect, choices=PAYMENT_CHOICE)
 
 
+class CouponForm(forms.Form):
+    code = forms.CharField(widget=forms.TextInput(attrs={
+        'class': 'form-control',
+        'placeholder': 'Promo Code',
+        'aria-label': 'Recipient\'s username',
+        'aria-describedby': 'basic-addon2'
+    }))
